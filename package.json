@@ -13,8 +13,16 @@
     "dependencies": {
         "smith": "~0.1.7"
     },
-    "devDependencies": {},
+    "devDependencies": {
+        "chai": "~1.2.0",
+        "mocha": "~1.3.2",
+        "vfs-lint": "~0.0.0",
+        "vfs-local": "~0.3.3"
+    },
     "optionalDependencies": {},
+    "scripts": {
+        "test": "git clean -df test/mock; mocha -R spec"
+    },
     "licenses" : [{
         "type" : "MIT",
         "url" : "http://github.com/c9/vfs-socket/raw/master/LICENSE"
