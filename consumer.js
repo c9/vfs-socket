@@ -60,23 +60,24 @@ function Consumer() {
 
     this.vfs = {
         ping: ping, // Send a simple ping request to the worker
-        spawn: route("spawn"),
-        exec: route("exec"),
-        connect: route("connect"),
+        resolve:  route("resolve"),
+        stat:     route("stat"),
         readfile: route("readfile"),
-        mkfile: route("mkfile"),
-        rmfile: route("rmfile"),
-        readdir: route("readdir"),
-        stat: route("stat"),
-        mkdir: route("mkdir"),
-        rmdir: route("rmdir"),
-        rename: route("rename"),
-        copy: route("copy"),
-        symlink: route("symlink"),
-        realpath: route("realpath"),
-        watch: route("watch"),
-        changedSince: route("changedSince"),
-        extend: route("extend"),
+        readdir:  route("readdir"),
+        mkfile:   route("mkfile"),
+        mkdir:    route("mkdir"),
+        rmfile:   route("rmfile"),
+        rmdir:    route("rmdir"),
+        rename:   route("rename"),
+        copy:     route("copy"),
+        symlink:  route("symlink"),
+        watch:    route("watch"),
+        connect:  route("connect"),
+        spawn:    route("spawn"),
+        execFile: route("execFile"),
+        extend:   route("extend"),
+        unextend: route("unextend"),
+        use:      route("use"),
         emit: emit,
         on: on,
         off: off
@@ -97,9 +98,11 @@ function Consumer() {
     });
 
     // Cleanup streams, proxy streams, proxy processes, and proxy apis on disconnect.
-    this.on("disconnect", function () {
-        var err = new Error("EDISCONNECT: vfs socket disconnected");
-        err.code = "EDISCONNECT";
+    this.on("disconnect", function (err) {
+        if (!err) {
+            err = new Error("EDISCONNECT: vfs socket disconnected");
+            err.code = "EDISCONNECT";
+        }
         Object.keys(streams).forEach(function (id) {
             var stream = streams[id];
             delete streams[id];
@@ -228,9 +231,6 @@ function Consumer() {
         var process = proxyProcesses[pid];
         process.emit("exit", code, signal);
         delete proxyProcesses[pid];
-        delete proxyStreams[process.stdout.id];
-        delete proxyStreams[process.stderr.id];
-        delete proxyStreams[process.stdin.id];
     }
     function onData(id, chunk) {
         var stream = proxyStreams[id];
@@ -302,7 +302,7 @@ function Consumer() {
             handlers[name].push(handler);
             if (pendingOn[name]) {
                 callback && pendingOn[name].push(callback);
-                return;
+                return callback();
             }
             return callback();
         }
@@ -320,7 +320,7 @@ function Consumer() {
     function off(name, handler, callback) {
         if (pendingOff[name]) {
             callback && pendingOff[name].push(callback);
-            return;
+            return callback();
         }
         if (!handlers[name]) {
             return callback();

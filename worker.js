@@ -44,23 +44,25 @@ function Worker(vfs) {
         ping: ping,
 
         // Route other calls to the local vfs instance
-        spawn: route("spawn"),
-        exec: route("exec"),
-        connect: route("connect"),
+        resolve:  route("resolve"),
+        stat:     route("stat"),
         readfile: route("readfile"),
-        mkfile: route("mkfile"),
-        rmfile: route("rmfile"),
-        readdir: route("readdir"),
-        stat: route("stat"),
-        mkdir: route("mkdir"),
-        rmdir: route("rmdir"),
-        rename: route("rename"),
-        copy: route("copy"),
-        symlink: route("symlink"),
-        realpath: route("realpath"),
-        watch: route("watch"),
-        changedSince: route("changedSince"),
-        extend: route("extend")
+        readdir:  route("readdir"),
+        mkfile:   route("mkfile"),
+        mkdir:    route("mkdir"),
+        rmfile:   route("rmfile"),
+        rmdir:    route("rmdir"),
+        rename:   route("rename"),
+        copy:     route("copy"),
+        symlink:  route("symlink"),
+        watch:    route("watch"),
+        connect:  route("connect"),
+        spawn:    route("spawn"),
+        execFile: route("execFile"),
+        extend:   route("extend"),
+        unextend: route("unextend"),
+        use:      route("use")
+
     });
 
     var proxyStreams = {};
@@ -98,9 +100,11 @@ function Worker(vfs) {
     });
 
     // Cleanup streams, proxy streams, proxy processes, and proxy apis on disconnect.
-    this.on("disconnect", function () {
-        var err = new Error("EDISCONNECT: vfs socket disconnected");
-        err.code = "EDISCONNECT";
+    this.on("disconnect", function (err) {
+        if (!err) {
+            err = new Error("EDISCONNECT: vfs socket disconnected");
+            err.code = "EDISCONNECT";
+        }
         Object.keys(streams).forEach(function (id) {
             var stream = streams[id];
             delete streams[id];
@@ -120,11 +124,6 @@ function Worker(vfs) {
             var watcher = watchers[id];
             delete watchers[id];
             watcher.emit("error", err);
-        });
-        Object.keys(apis).forEach(function (name) {
-            var api = apis[name];
-            delete apis[name];
-            api.emit("error", err);
         });
     });
 
@@ -304,21 +303,20 @@ function Worker(vfs) {
                     if (err.hasOwnProperty("message")) nerr.message = err.message;
                     return callback(nerr);
                 }
-                // Replace streams with tokens
-                if (meta.stream) {
-                    meta.stream = storeStream(meta.stream);
-                }
-                if (meta.process) {
-                    meta.process = storeProcess(meta.process);
-                }
-                if (meta.watcher) {
-                    meta.watcher = storeWatcher(meta.watcher);
-                }
-                if (meta.api) {
-                    meta.api = storeApi(meta.api);
+                var token = {};
+                var keys = Object.keys(meta);
+                for (var i = 0, l = keys.length; i < l; i++) {
+                    var key = keys[i];
+                    switch (key) {
+                        case "stream": token.stream = storeStream(meta.stream); break;
+                        case "process": token.process = storeProcess(meta.process); break;
+                        case "watcher": token.watcher = storeWatcher(meta.watcher); break;
+                        case "api": token.api = storeApi(meta.api); break;
+                        default: token[key] = meta[key]; break;
+                    }
                 }
                 // Call the remote callback with the result
-                callback(null, meta);
+                callback(null, token);
             });
         };
     }
