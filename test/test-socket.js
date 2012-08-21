@@ -1,7 +1,6 @@
-/*global describe:false, it:false */
+/*global describe it before*/
 
 var expect = require('chai').expect;
-
 describe('vfs-socket', function () {
 
   var fs = require('fs');
