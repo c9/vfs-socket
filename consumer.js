@@ -41,6 +41,7 @@ function Consumer() {
 
         // Endpoint for processes in meta.process
         onExit: onExit,
+        onProcessClose: onProcessClose,
 
         // Endpoint for watchers in meta.watcher
         onChange: onChange,
@@ -56,7 +57,6 @@ function Consumer() {
     var proxyApis = {};
     var handlers = {}; // local handlers for remote events
     var pendingOn = {}; // queue for pending on handlers.
-    var pendingOff = {}; // queue for pending off handlers.
 
     this.vfs = {
         ping: ping, // Send a simple ping request to the worker
@@ -143,15 +143,15 @@ function Consumer() {
                 }
             });
             stream.on("end", function () {
-                remote.onEnd(id);
                 delete streams[id];
+                remote.onEnd(id);
                 nextStreamID = id;
             });
         }
         if (stream.writable) {
             stream.on("close", function () {
-                remote.onClose(id);
                 delete streams[id];
+                remote.onClose(id);
                 nextStreamID = id;
             });
         }
@@ -229,23 +229,36 @@ function Consumer() {
 
     function onExit(pid, code, signal) {
         var process = proxyProcesses[pid];
-        process.emit("exit", code, signal);
+        if (!process) return;
+        // TODO: not delete proxy if close is going to be called later.
+        // but somehow do delete proxy if close won't be called later.
         delete proxyProcesses[pid];
+        process.emit("exit", code, signal);
+    }
+    function onProcessClose(pid) {
+        var process = proxyProcesses[pid];
+        if (!process) return;
+        delete proxyProcesses[pid];
+        process.emit("close");
     }
     function onData(id, chunk) {
         var stream = proxyStreams[id];
+        if (!stream) return;
         stream.emit("data", chunk);
     }
     function onEnd(id) {
         var stream = proxyStreams[id];
-        stream.emit("end");
+        if (!stream) return;
+        // TODO: not delete proxy if close is going to be called later.
+        // but somehow do delete proxy if close won't be called later.
         delete proxyStreams[id];
+        stream.emit("end");
     }
     function onClose(id) {
         var stream = proxyStreams[id];
         if (!stream) return;
-        stream.emit("close");
         delete proxyStreams[id];
+        stream.emit("close");
     }
 
     function onChange(id, event, filename) {
@@ -266,6 +279,7 @@ function Consumer() {
     function write(id, chunk) {
         // They want to write to our real stream
         var stream = streams[id];
+        if (!stream) return;
         stream.write(chunk);
     }
     function destroy(id) {
@@ -288,14 +302,11 @@ function Consumer() {
     function end(id, chunk) {
         var stream = streams[id];
         if (!stream) return;
-        if (chunk)
-            stream.end(chunk);
-        else
-            stream.end();
         delete streams[id];
+        if (chunk) stream.end(chunk);
+        else stream.end();
         nextStreamID = id;
     }
-
 
     function on(name, handler, callback) {
         if (handlers[name]) {
@@ -318,22 +329,20 @@ function Consumer() {
     }
 
     function off(name, handler, callback) {
-        if (pendingOff[name]) {
-            callback && pendingOff[name].push(callback);
-            return callback();
-        }
-        if (!handlers[name]) {
-            return callback();
-        }
-        var pending = pendingOff[name] = [];
-        callback && pending.push(callback);
-        return remote.unsubscribe(name, function (err) {
-            delete handlers[name];
-            for (var i = 0, l = pending.length; i < l; i++) {
-                pending[i](err);
-            }
-            delete pendingOff[name];
-        });
+        // First look for handler in local list and abort if it's not here.
+        var list = handlers[name];
+        if (!list) return callback();
+        var index = list.indexOf(handler);
+        if (index < 0) return callback();
+
+        // Remove the handler from the local list
+        list.splice(index, 1);
+        // Finish if there are others left still
+        if (list.length > 0) return callback();
+
+        // If the list is empty, delete it and unsubscribe from the event source
+        delete handlers[name];
+        remote.unsubscribe(name, callback);
     }
 
     function emit() {

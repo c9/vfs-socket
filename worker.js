@@ -81,9 +81,10 @@ function Worker(vfs) {
     }
 
     function unsubscribe(name, callback) {
-        if (!handlers[name]) return;
-        vfs.off(name, handlers[name], callback);
+        var handler = handlers[name];
+        if (!handler) return;
         delete handlers[name];
+        vfs.off(name, handler, callback);
     }
 
     // Resume readable streams that we paused when the channel drains
@@ -166,15 +167,15 @@ function Worker(vfs) {
                 }
             });
             stream.on("end", function () {
-                remote.onEnd(id);
                 delete streams[id];
+                remote.onEnd(id);
                 nextStreamID = id;
             });
         }
         if (stream.writable) {
             stream.on("close", function () {
-                remote.onClose(id);
                 delete streams[id];
+                remote.onClose(id);
                 nextStreamID = id;
             });
         }
@@ -188,11 +189,15 @@ function Worker(vfs) {
         var pid = process.pid;
         processes[pid] = process;
         process.on("exit", function (code, signal) {
+            delete processes[pid];
             remote.onExit(pid, code, signal);
+        });
+        process.on("close", function () {
             delete processes[pid];
             delete streams[process.stdout.id];
             delete streams[process.stderr.id];
             delete streams[process.stdin.id];
+            remote.onProcessClose(pid);
         });
         var token = {pid: pid};
         token.stdin = storeStream(process.stdin);
@@ -225,35 +230,37 @@ function Worker(vfs) {
     function write(id, chunk) {
         // They want to write to our real stream
         var stream = streams[id];
+        if (!stream) return;
         stream.write(chunk);
     }
     function destroy(id) {
         var stream = streams[id];
         if (!stream) return;
-        stream.destroy();
         delete streams[id];
+        stream.destroy();
         nextStreamID = id;
     }
     function end(id, chunk) {
         var stream = streams[id];
         if (!stream) return;
-        if (chunk)
-            stream.end(chunk);
-        else
-            stream.end();
         delete streams[id];
+        if (chunk) stream.end(chunk);
+        else stream.end();
         nextStreamID = id;
     }
 
     function kill(pid, code) {
         var process = processes[pid];
+        if (!process) return;
         process.kill(code);
     }
 
     function closeWatcher(id) {
         var watcher = watchers[id];
+        if (!watcher) return;
         delete watchers[id];
         watcher.close();
+        nextWatcherID = id;
     }
 
     function call(name, fnName, args) {
@@ -264,18 +271,22 @@ function Worker(vfs) {
 
     function onData(id, chunk) {
         var stream = proxyStreams[id];
+        if (!stream) return;
         stream.emit("data", chunk);
     }
     function onEnd(id) {
         var stream = proxyStreams[id];
-        stream.emit("end");
+        if (!stream) return;
+        // TODO: not delete proxy if close is going to be called later.
+        // but somehow do delete proxy if close won't be called later.
         delete proxyStreams[id];
+        stream.emit("end");
     }
     function onClose(id) {
         var stream = proxyStreams[id];
         if (!stream) return;
-        stream.emit("close");
         delete proxyStreams[id];
+        stream.emit("close");
     }
 
     // Can be used for keepalive checks.

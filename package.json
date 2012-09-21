@@ -5,7 +5,7 @@
     ],
     "name": "vfs-socket",
     "description": "A vfs helper library that communicates through a serialized socket",
-    "version": "0.3.0",
+    "version": "0.3.1",
     "repository": {
         "type": "git",
         "url": "git://github.com/c9/vfs-socket.git"

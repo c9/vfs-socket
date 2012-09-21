@@ -729,6 +729,27 @@ describe('vfs-socket', function () {
         expect(data).equal(45);
       }
     });
+    it("should not remove all listeners", function (done) {
+      var times = 0;
+      vfs.on("myevent", onEvent, function (err) {
+        if (err) throw err;
+        vfs.on("myevent", onEvent, function (err) {
+          if (err) throw err;
+          vfs.off("myevent", onEvent, function (err) {
+            if (err) throw err;
+            vfs.emit("myevent", 45, function (err) {
+              if (err) throw err;
+              expect(times).equal(1);
+              done();
+            });
+          });
+        });
+      });
+      function onEvent(data) {
+        times++;
+        expect(data).equal(45);
+      }
+    });
   });
 
   describe('vfs.extend()', function () {
