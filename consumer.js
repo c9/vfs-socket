@@ -233,12 +233,14 @@ function Consumer() {
         // TODO: not delete proxy if close is going to be called later.
         // but somehow do delete proxy if close won't be called later.
         delete proxyProcesses[pid];
+        onClose(process.stdin.id);
         process.emit("exit", code, signal);
     }
     function onProcessClose(pid) {
         var process = proxyProcesses[pid];
         if (!process) return;
         delete proxyProcesses[pid];
+        onClose(process.stdin.id);
         process.emit("close");
     }
     function onData(id, chunk) {
