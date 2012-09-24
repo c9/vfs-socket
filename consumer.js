@@ -105,14 +105,9 @@ function Consumer() {
         }
         Object.keys(streams).forEach(function (id) {
             var stream = streams[id];
-            delete streams[id];
-            stream.emit("error", err);
+            stream.emit("close");
         });
-        Object.keys(proxyStreams).forEach(function (id) {
-            var proxyStream = proxyStreams[id];
-            delete proxyStreams[id];
-            proxyStream.emit("error", err);
-        });
+        Object.keys(proxyStreams).forEach(onClose);
         Object.keys(proxyProcesses).forEach(function (pid) {
             var proxyProcess = proxyProcesses[pid];
             delete proxyProcesses[pid];
@@ -148,13 +143,11 @@ function Consumer() {
                 nextStreamID = id;
             });
         }
-        if (stream.writable) {
-            stream.on("close", function () {
-                delete streams[id];
-                remote.onClose(id);
-                nextStreamID = id;
-            });
-        }
+        stream.on("close", function () {
+            delete streams[id];
+            remote.onClose(id);
+            nextStreamID = id;
+        });
         var token = {id: id};
         if (stream.hasOwnProperty("readable")) token.readable = stream.readable;
         if (stream.hasOwnProperty("writable")) token.writable = stream.writable;
@@ -233,14 +226,12 @@ function Consumer() {
         // TODO: not delete proxy if close is going to be called later.
         // but somehow do delete proxy if close won't be called later.
         delete proxyProcesses[pid];
-        onClose(process.stdin.id);
         process.emit("exit", code, signal);
     }
     function onProcessClose(pid) {
         var process = proxyProcesses[pid];
         if (!process) return;
         delete proxyProcesses[pid];
-        onClose(process.stdin.id);
         process.emit("close");
     }
     function onData(id, chunk) {

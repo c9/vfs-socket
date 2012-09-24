@@ -108,14 +108,9 @@ function Worker(vfs) {
         }
         Object.keys(streams).forEach(function (id) {
             var stream = streams[id];
-            delete streams[id];
-            stream.emit("error", err);
+            stream.emit("close", err);
         });
-        Object.keys(proxyStreams).forEach(function (id) {
-            var proxyStream = proxyStreams[id];
-            delete proxyStreams[id];
-            proxyStream.emit("error", err);
-        });
+        Object.keys(proxyStreams).forEach(onClose);
         Object.keys(processes).forEach(function (pid) {
             var process = processes[pid];
             delete processes[pid];
@@ -172,13 +167,11 @@ function Worker(vfs) {
                 nextStreamID = id;
             });
         }
-        if (stream.writable) {
-            stream.on("close", function () {
-                delete streams[id];
-                remote.onClose(id);
-                nextStreamID = id;
-            });
-        }
+        stream.on("close", function () {
+            delete streams[id];
+            remote.onClose(id);
+            nextStreamID = id;
+        });
         var token = {id: id};
         if (stream.hasOwnProperty("readable")) token.readable = stream.readable;
         if (stream.hasOwnProperty("writable")) token.writable = stream.writable;
