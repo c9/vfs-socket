@@ -134,7 +134,7 @@ function Consumer() {
         if (stream.readable) {
             stream.on("data", function (chunk) {
                 if (remote.onData(id, chunk) === false) {
-                    stream.pause();
+                    stream.pause && stream.pause();
                 }
             });
             stream.on("end", function () {
@@ -285,12 +285,12 @@ function Consumer() {
     function pause(id) {
         var stream = streams[id];
         if (!stream) return;
-        stream.pause();
+        stream.pause && stream.pause();
     }
     function resume(id) {
         var stream = streams[id];
         if (!stream) return;
-        stream.resume();
+        stream.resume && stream.resume();
     }
     function end(id, chunk) {
         var stream = streams[id];

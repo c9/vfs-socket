@@ -158,7 +158,7 @@ function Worker(vfs) {
         if (stream.readable) {
             stream.on("data", function (chunk) {
                 if (remote.onData(id, chunk) === false) {
-                    stream.pause();
+                    stream.pause && stream.pause();
                 }
             });
             stream.on("end", function () {
