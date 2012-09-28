@@ -111,7 +111,7 @@ function Consumer() {
         Object.keys(proxyProcesses).forEach(function (pid) {
             var proxyProcess = proxyProcesses[pid];
             delete proxyProcesses[pid];
-            proxyProcess.emit("error", err);
+            proxyProcess.emit("exit", 1);
         });
         Object.keys(proxyWatchers).forEach(function (id) {
             var proxyWatcher = proxyWatchers[id];
