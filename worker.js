@@ -2,6 +2,7 @@ var inherits = require('util').inherits;
 var smith = require('smith');
 var Agent = smith.Agent;
 var Stream = require('stream').Stream;
+var execFile = require("child_process").execFile;
 
 exports.smith = smith;
 
@@ -113,6 +114,7 @@ function Worker(vfs) {
         Object.keys(proxyStreams).forEach(onClose);
         Object.keys(processes).forEach(function (pid) {
             var process = processes[pid];
+            process.kill();
             delete processes[pid];
             process.emit("error", err);
         });
@@ -192,11 +194,55 @@ function Worker(vfs) {
             delete streams[process.stdin.id];
             remote.onProcessClose(pid);
         });
+
+        process.kill = function(code) {
+            killtree(pid, code);
+        };
+
         var token = {pid: pid};
         token.stdin = storeStream(process.stdin);
         token.stdout = storeStream(process.stdout);
         token.stderr = storeStream(process.stderr);
         return token;
+    }
+
+    function killtree(pid, code) {
+        childrenOfPid(pid, function(err, pidlist){
+            if (err) {
+                console.error(err.stack);
+                return;
+            }
+            pidlist.forEach(function (pid) {
+                try {
+                    process.kill(pid, code || "SIGKILL");
+                } catch(e) {
+                    // kill may throw if the pid does not exist.
+                }
+            });
+        });
+    }
+
+    function childrenOfPid(pid, callback) {
+        execFile("ps", ["-A", "-oppid,pid"], function(code, stdout, stderr) {
+            if (code)
+                return callback(code + ":" + stderr);
+
+            var parents = {};
+            stdout.split("\n").slice(1).forEach(function(line) {
+                var col = line.trim().split(/\s+/g);
+                (parents[col[0]] || (parents[col[0]] = [])).push(col[1]);
+            });
+
+            function search(roots) {
+            var res = roots.concat();
+            for (var c, i = 0; i < roots.length; i++) {
+                if ((c = parents[roots[i]]) && c.length)
+                    res.push.apply(res, search(c));
+                }
+                return res;
+            }
+            callback(null, search([pid]));
+        });
     }
 
     var nextWatcherID = 1;
