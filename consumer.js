@@ -214,7 +214,17 @@ function Consumer() {
         api.names = token.names;
         token.names.forEach(function (functionName) {
             api[functionName] = function () {
-                remote.call(name, functionName, Array.prototype.slice.call(arguments));
+                var args = Array.prototype.slice.call(arguments);
+                if (typeof args[args.length - 1] === "function") {
+                    var callback = args[args.length - 1];
+                    args[args.length - 1] = function (err, meta) {
+                        if (meta && typeof meta === "object") {
+                            return process(err, meta, callback);
+                        }
+                        callback(err, meta);
+                    };
+                }
+                remote.call(name, functionName, args);
             };
         });
         return api;
@@ -342,6 +352,25 @@ function Consumer() {
         remote.emit.apply(remote, arguments);
     }
 
+    // Liven vfs-socket extras like streams and processes
+    function process(err, meta, callback) {
+        if (err) return callback(err);
+        if (meta.stream) {
+            meta.stream = makeStreamProxy(meta.stream);
+        }
+        if (meta.process) {
+            meta.process = makeProcessProxy(meta.process);
+        }
+        if (meta.watcher) {
+            meta.watcher = makeWatcherProxy(meta.watcher);
+        }
+        if (meta.api) {
+            meta.api = makeApiProxy(meta.api);
+        }
+
+        return callback(null, meta);
+    }
+
     // Return fake endpoints in the initial return till we have the real ones.
     function route(name) {
         return function (path, options, callback) {
@@ -350,21 +379,7 @@ function Consumer() {
                 options.stream = storeStream(options.stream);
             }
             return remote[name].call(this, path, options, function (err, meta) {
-                if (err) return callback(err);
-                if (meta.stream) {
-                    meta.stream = makeStreamProxy(meta.stream);
-                }
-                if (meta.process) {
-                    meta.process = makeProcessProxy(meta.process);
-                }
-                if (meta.watcher) {
-                    meta.watcher = makeWatcherProxy(meta.watcher);
-                }
-                if (meta.api) {
-                    meta.api = makeApiProxy(meta.api);
-                }
-
-                return callback(null, meta);
+                process(err, meta, callback);
             });
         };
     }

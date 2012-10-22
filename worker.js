@@ -305,6 +305,18 @@ function Worker(vfs) {
     function call(name, fnName, args) {
         var api = apis[name];
         if (!api) return;
+
+        // If the last arg is a function, assume it's a callback and process it.
+        if (typeof args[args.length - 1] == "function") {
+            var callback = args[args.length - 1];
+            args[args.length - 1] = function (err, meta) {
+                if (err || (meta && typeof meta === "object")) {
+                    return process(err, meta, callback);
+                }
+                callback(err, meta);
+            };
+        }
+
         api[fnName].apply(api, args);
     }
 
@@ -333,6 +345,32 @@ function Worker(vfs) {
         callback();
     }
 
+    function process(err, meta, callback) {
+        // Make error objects serializable
+        if (err) {
+            var nerr = {
+                stack: process.pid + ": " + err.stack
+            };
+            if (err.hasOwnProperty("code")) nerr.code = err.code;
+            if (err.hasOwnProperty("message")) nerr.message = err.message;
+            return callback(nerr);
+        }
+        var token = {};
+        var keys = Object.keys(meta);
+        for (var i = 0, l = keys.length; i < l; i++) {
+            var key = keys[i];
+            switch (key) {
+                case "stream": token.stream = storeStream(meta.stream); break;
+                case "process": token.process = storeProcess(meta.process); break;
+                case "watcher": token.watcher = storeWatcher(meta.watcher); break;
+                case "api": token.api = storeApi(meta.api); break;
+                default: token[key] = meta[key]; break;
+            }
+        }
+        // Call the remote callback with the result
+        callback(null, token);
+    }
+
     function route(name) {
         var fn = vfs[name];
         return function wrapped(path, options, callback) {
@@ -344,29 +382,7 @@ function Worker(vfs) {
                 options.stream = makeStreamProxy(options.stream);
             }
             fn(path, options, function (err, meta) {
-                // Make error objects serializable
-                if (err) {
-                    var nerr = {
-                        stack: process.pid + ": " + err.stack
-                    };
-                    if (err.hasOwnProperty("code")) nerr.code = err.code;
-                    if (err.hasOwnProperty("message")) nerr.message = err.message;
-                    return callback(nerr);
-                }
-                var token = {};
-                var keys = Object.keys(meta);
-                for (var i = 0, l = keys.length; i < l; i++) {
-                    var key = keys[i];
-                    switch (key) {
-                        case "stream": token.stream = storeStream(meta.stream); break;
-                        case "process": token.process = storeProcess(meta.process); break;
-                        case "watcher": token.watcher = storeWatcher(meta.watcher); break;
-                        case "api": token.api = storeApi(meta.api); break;
-                        default: token[key] = meta[key]; break;
-                    }
-                }
-                // Call the remote callback with the result
-                callback(null, token);
+                process(err, meta, callback);
             });
         };
     }
