@@ -219,7 +219,7 @@ function Consumer() {
                     var callback = args[args.length - 1];
                     args[args.length - 1] = function (err, meta) {
                         if (meta && typeof meta === "object") {
-                            return process(err, meta, callback);
+                            return processCallback(err, meta, callback);
                         }
                         callback(err, meta);
                     };
@@ -353,7 +353,7 @@ function Consumer() {
     }
 
     // Liven vfs-socket extras like streams and processes
-    function process(err, meta, callback) {
+    function processCallback(err, meta, callback) {
         if (err) return callback(err);
         if (meta.stream) {
             meta.stream = makeStreamProxy(meta.stream);
@@ -379,7 +379,7 @@ function Consumer() {
                 options.stream = storeStream(options.stream);
             }
             return remote[name].call(this, path, options, function (err, meta) {
-                process(err, meta, callback);
+                processCallback(err, meta, callback);
             });
         };
     }

@@ -311,7 +311,7 @@ function Worker(vfs) {
             var callback = args[args.length - 1];
             args[args.length - 1] = function (err, meta) {
                 if (err || (meta && typeof meta === "object")) {
-                    return process(err, meta, callback);
+                    return processCallback(err, meta, callback);
                 }
                 callback(err, meta);
             };
@@ -345,7 +345,7 @@ function Worker(vfs) {
         callback();
     }
 
-    function process(err, meta, callback) {
+    function processCallback(err, meta, callback) {
         // Make error objects serializable
         if (err) {
             var nerr = {
@@ -382,7 +382,7 @@ function Worker(vfs) {
                 options.stream = makeStreamProxy(options.stream);
             }
             fn(path, options, function (err, meta) {
-                process(err, meta, callback);
+                processCallback(err, meta, callback);
             });
         };
     }
