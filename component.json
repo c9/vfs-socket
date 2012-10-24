@@ -4,6 +4,7 @@
   "description": "A vfs helper library that communicates through a serialized socket",
   "dependencies": {
     "c9/smith": "*",
+    "juliangruber/events": "*",
     "juliangruber/stream": "*"
   },
   "main": "consumer.js",
