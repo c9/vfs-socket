@@ -1,10 +1,11 @@
 {
-  "name": "vfs-socket",
+  "name": "vfs-socket-consumer",
   "version": "0.3.7",
   "description": "A vfs helper library that communicates through a serialized socket",
   "dependencies": {
     "c9/smith": "*",
     "juliangruber/stream": "*"
   },
-  "scripts": ["consumer.js", "worker.js"]
+  "main": "consumer.js",
+  "scripts": ["consumer.js"]
 }
