@@ -121,7 +121,7 @@ function Worker(vfs) {
         Object.keys(watchers).forEach(function (id) {
             var watcher = watchers[id];
             delete watchers[id];
-            watcher.emit("error", err);
+            watcher.close();
         });
     });
 
