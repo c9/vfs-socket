@@ -1,4 +1,4 @@
-define("events-stream", ["./events-amd"], function (events) {
+define(["./events-amd"], function (events) {
 
   function Stream() {}
 
