@@ -1,6 +1,6 @@
 ( // Module boilerplate to support browser globals, node.js and AMD.
   (typeof module !== "undefined" && function (m) { module.exports = m(require('stream'), require('events'), require('smith')); }) ||
-  (typeof define === "function" && function (m) { define("vfs-socket/consumer", ["events-stream", "events-stream", "smith"], m); }) ||
+  (typeof define === "function" && function (m) { define("vfs-socket/consumer", ["./stream-amd", "./events-amd", "smith"], m); }) ||
   (function (m) { window.consumer = m(window.stream, window.events, window.smith); })
 )(function (stream, events, smith) {
 "use strict";
