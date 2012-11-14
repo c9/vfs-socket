@@ -10,9 +10,9 @@ describe('vfs-socket', function () {
   var root = __dirname + "/mock/";
   var base = root.substr(0, root.length - 1);
 
-  var Consumer = require('vfs-socket/consumer').Consumer;
-  var Worker = require('vfs-socket/worker').Worker;
-  var Transport = require('vfs-socket/worker').smith.Transport;
+  var Consumer = require('../consumer').Consumer;
+  var Worker = require('../worker').Worker;
+  var Transport = require('../worker').smith.Transport;
 
   var worker = new Worker(require('vfs-local')({
       root: root,
