@@ -5,13 +5,13 @@
     ],
     "name": "vfs-socket",
     "description": "A vfs helper library that communicates through a serialized socket",
-    "version": "0.3.10",
+    "version": "0.3.11",
     "repository": {
         "type": "git",
         "url": "git://github.com/c9/vfs-socket.git"
     },
     "dependencies": {
-        "smith": "~0.1.16"
+        "smith": "~0.1.17"
     },
     "devDependencies": {
         "chai": "~1.2.0",
