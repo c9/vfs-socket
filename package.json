@@ -11,7 +11,7 @@
         "url": "git://github.com/c9/vfs-socket.git"
     },
     "dependencies": {
-        "smith": "~0.1.16"
+        "smith": "git://github.com/rocketpack/smith.git"
     },
     "devDependencies": {
         "chai": "~1.2.0",
