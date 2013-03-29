@@ -372,7 +372,6 @@ function Worker(vfs) {
     }
 
     function route(name) {
-        var fn = vfs[name];
         return function wrapped(path, options, callback) {
             if (typeof callback !== "function") {
                 throw new Error(name + ": callback must be function");
@@ -381,7 +380,7 @@ function Worker(vfs) {
             if (options.stream) {
                 options.stream = makeStreamProxy(options.stream);
             }
-            fn(path, options, function (err, meta) {
+            vfs[name](path, options, function (err, meta) {
                 processCallback(err, meta, callback);
             });
         };
