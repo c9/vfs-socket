@@ -393,6 +393,7 @@ inherits(Consumer, Agent);
 
 // Emit the wrapped API, not the raw one
 Consumer.prototype._emitConnect = function () {
+    this.vfs.env = this.remoteEnv;
     this.emit("connect", this.vfs);
 };
 
