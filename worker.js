@@ -116,15 +116,14 @@ function Worker(vfs) {
             var process = processes[pid];
             process.kill();
             delete processes[pid];
-            process.emit("error", err);
         });
         Object.keys(watchers).forEach(function (id) {
             var watcher = watchers[id];
             delete watchers[id];
-            watcher.emit("error", err);
+            watcher.close();
         });
     });
-
+    
     function makeStreamProxy(token) {
         var stream = new Stream();
         var id = token.id;
