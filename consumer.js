@@ -1,6 +1,6 @@
 ( // Module boilerplate to support browser globals, node.js and AMD.
   (typeof module !== "undefined" && function (m) { module.exports = m(require('stream'), require('events'), require('smith')); }) ||
-  (typeof define === "function" && function (m) { define("vfs-socket/consumer", ["./stream-amd", "./events-amd", "smith"], m); }) ||
+  (typeof define === "function" && function (m) { define(["./stream-amd", "./events-amd", "smith"], m); }) ||
   (function (m) { window.consumer = m(window.stream, window.events, window.smith); })
 )(function (stream, events, smith) {
 "use strict";
@@ -74,6 +74,7 @@ function Consumer() {
         watch:    route("watch"),
         connect:  route("connect"),
         spawn:    route("spawn"),
+        pty:      route("pty"),
         execFile: route("execFile"),
         extend:   route("extend"),
         unextend: route("unextend"),
@@ -124,6 +125,10 @@ function Consumer() {
             proxyApi.emit("error", err);
         });
     });
+    
+    this.on("error", function(err){
+        this.emit("error", err);
+    })
 
     var nextStreamID = 1;
     function storeStream(stream) {
@@ -137,9 +142,9 @@ function Consumer() {
                     stream.pause && stream.pause();
                 }
             });
-            stream.on("end", function () {
+            stream.on("end", function (chunk) {
                 delete streams[id];
-                remote.onEnd(id);
+                remote.onEnd(id, chunk);
                 nextStreamID = id;
             });
         }
@@ -193,6 +198,19 @@ function Consumer() {
             remote.kill(pid, signal);
         };
         return process;
+    }
+    function makePtyProxy(token){
+        var pty = makeStreamProxy(token);
+        var pid = token.pid;
+        pty.pid = pid;
+        proxyProcesses[pid] = pty;
+        pty.kill = function (signal) {
+            remote.kill(pid, signal);
+        };
+        pty.resize = function (cols, rows) {
+            remote.resize(pid, cols, rows);
+        };
+        return pty;
     }
 
     function makeWatcherProxy(token) {
@@ -249,13 +267,13 @@ function Consumer() {
         if (!stream) return;
         stream.emit("data", chunk);
     }
-    function onEnd(id) {
+    function onEnd(id, chunk) {
         var stream = proxyStreams[id];
         if (!stream) return;
         // TODO: not delete proxy if close is going to be called later.
         // but somehow do delete proxy if close won't be called later.
         delete proxyStreams[id];
-        stream.emit("end");
+        stream.emit("end", chunk);
     }
     function onClose(id) {
         var stream = proxyStreams[id];
@@ -360,6 +378,9 @@ function Consumer() {
         }
         if (meta.process) {
             meta.process = makeProcessProxy(meta.process);
+        }
+        if (meta.pty) {
+            meta.pty = makePtyProxy(meta.pty);
         }
         if (meta.watcher) {
             meta.watcher = makeWatcherProxy(meta.watcher);
