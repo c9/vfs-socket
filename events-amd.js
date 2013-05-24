@@ -261,6 +261,7 @@ EventEmitter.prototype.removeListener = function(type, listener) {
 
   return this;
 };
+EventEmitter.prototype.off = EventEmitter.prototype.removeListener;
 
 /**
  * Removes all listeners, or those of the specified event.
