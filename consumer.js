@@ -127,8 +127,9 @@ function Consumer() {
     });
     
     this.on("error", function(err){
-        this.emit("error", err);
-    })
+        // just adding an empty listener so that events-amd doesn't throw
+        console.error(err);
+    });
 
     var nextStreamID = 1;
     function storeStream(stream) {
