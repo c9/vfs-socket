@@ -145,7 +145,7 @@ describe('vfs-socket', function () {
     it("should support 304 via etags", function (done) {
       vfs.readfile("/file.txt", {head:true}, function (err, meta) {
         if (err) throw err;
-        expect(meta).property("etag").ok
+        expect(meta).property("etag").ok;
         var etag = meta.etag;
         vfs.readfile("/file.txt", {etag:etag}, function (err, meta) {
           if (err) throw err;
@@ -242,7 +242,7 @@ describe('vfs-socket', function () {
     it("should support 304 via etags", function (done) {
       vfs.readdir("/", {head:true}, function (err, meta) {
         if (err) throw err;
-        expect(meta).property("etag").ok
+        expect(meta).property("etag").ok;
         var etag = meta.etag;
         vfs.readdir("/", {etag:etag}, function (err, meta) {
           if (err) throw err;
@@ -599,7 +599,7 @@ describe('vfs-socket', function () {
 
   describe('vfs.spawn()', function () {
     it("should spawn a child process", function (done) {
-      var args = ["-e", "process.stdin.pipe(process.stdout);process.stdin.resume();"];
+      var args = ["-e", "process.stdin.pipe(process.stdout);try{process.stdin.resume()}catch(e){};"];
       vfs.spawn(process.execPath, {args: args, stdoutEncoding: "utf8"}, function (err, meta) {
         if (err) throw err;
         expect(meta).property("process").ok;
@@ -633,6 +633,18 @@ describe('vfs-socket', function () {
           done();
         });
 
+      });
+    });
+    it("should exit with code 127 if the file does not exist", function(done) {
+      vfs.spawn("i_dont_exist_321", {}, function(err, meta) {
+        var child = meta.process;
+        child.stdout.on("data", function (chunk) {
+          console.log(chunk + "");
+        });
+        child.on("exit", function(code, signal) {
+          expect(code).equal(127);
+          done();
+        });
       });
     });
   });
