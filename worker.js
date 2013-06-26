@@ -156,6 +156,7 @@ function Worker(vfs) {
 
     var nextStreamID = 1;
     function storeStream(stream) {
+        nextStreamID = nextStreamID++ % 10000;
         while (streams.hasOwnProperty(nextStreamID)) { nextStreamID++; }
         var id = nextStreamID;
         streams[id] = stream;
@@ -169,13 +170,11 @@ function Worker(vfs) {
             stream.on("end", function (chunk) {
                 delete streams[id];
                 remote.onEnd(id, chunk);
-                nextStreamID = id;
             });
         }
         stream.on("close", function () {
             delete streams[id];
             remote.onClose(id);
-            nextStreamID = id;
         });
         var token = {id: id};
         if (stream.hasOwnProperty("readable")) token.readable = stream.readable;
