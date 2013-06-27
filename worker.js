@@ -157,7 +157,7 @@ function Worker(vfs) {
     var nextStreamID = 1;
     function storeStream(stream) {
         nextStreamID = nextStreamID++ % 10000;
-        while (streams.hasOwnProperty(nextStreamID)) { nextStreamID++; }
+        while (streams.hasOwnProperty(nextStreamID)) { nextStreamID++ % 10000; }
         var id = nextStreamID;
         streams[id] = stream;
         stream.id = id;
