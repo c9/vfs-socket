@@ -50,6 +50,7 @@ function Worker(vfs) {
         // Route other calls to the local vfs instance
         resolve:  route("resolve"),
         stat:     route("stat"),
+        metadata: route("metadata"),
         readfile: route("readfile"),
         readdir:  route("readdir"),
         mkfile:   route("mkfile"),

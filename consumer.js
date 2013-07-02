@@ -62,6 +62,7 @@ function Consumer() {
         ping: ping, // Send a simple ping request to the worker
         resolve:  route("resolve"),
         stat:     route("stat"),
+        metadata: route("metadata"),
         readfile: route("readfile"),
         readdir:  route("readdir"),
         mkfile:   route("mkfile"),
