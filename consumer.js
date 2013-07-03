@@ -309,7 +309,7 @@ function Consumer() {
         if (!stream) return;
         stream.destroy();
         delete streams[id];
-        nextStreamID = id;
+        // nextStreamID = id;
     }
     function pause(id) {
         var stream = streams[id];
@@ -327,7 +327,7 @@ function Consumer() {
         delete streams[id];
         if (chunk) stream.end(chunk);
         else stream.end();
-        nextStreamID = id;
+        // nextStreamID = id;
     }
 
     function on(name, handler, callback) {
