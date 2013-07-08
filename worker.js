@@ -30,6 +30,9 @@ function Worker(vfs) {
         // Endpoints for processes at meta.process
         kill: kill,
 
+        // Endpoints for processes at meta.pty
+        resize: resize,
+
         // Endpoint for watchers at meta.watcher
         close: closeWatcher,
 
@@ -47,6 +50,7 @@ function Worker(vfs) {
         // Route other calls to the local vfs instance
         resolve:  route("resolve"),
         stat:     route("stat"),
+        metadata: route("metadata"),
         readfile: route("readfile"),
         readdir:  route("readdir"),
         mkfile:   route("mkfile"),
@@ -59,6 +63,7 @@ function Worker(vfs) {
         watch:    route("watch"),
         connect:  route("connect"),
         spawn:    route("spawn"),
+        pty:      route("pty"),
         execFile: route("execFile"),
         extend:   route("extend"),
         unextend: route("unextend"),
@@ -107,16 +112,16 @@ function Worker(vfs) {
             err = new Error("EDISCONNECT: vfs socket disconnected");
             err.code = "EDISCONNECT";
         }
-        Object.keys(streams).forEach(function (id) {
-            var stream = streams[id];
-            stream.emit("close", err);
-        });
-        Object.keys(proxyStreams).forEach(onClose);
         Object.keys(processes).forEach(function (pid) {
             var process = processes[pid];
             process.kill();
             delete processes[pid];
         });
+        Object.keys(streams).forEach(function (id) {
+            var stream = streams[id];
+            stream.emit("close", err);
+        });
+        Object.keys(proxyStreams).forEach(onClose);
         Object.keys(watchers).forEach(function (id) {
             var watcher = watchers[id];
             delete watchers[id];
@@ -163,9 +168,9 @@ function Worker(vfs) {
                     stream.pause && stream.pause();
                 }
             });
-            stream.on("end", function () {
+            stream.on("end", function (chunk) {
                 delete streams[id];
-                remote.onEnd(id);
+                remote.onEnd(id, chunk);
             });
         }
         stream.on("close", function () {
@@ -178,7 +183,7 @@ function Worker(vfs) {
         return token;
     }
 
-    function storeProcess(process) {
+    function storeProcess(process, onlyPid) {
         var pid = process.pid;
         processes[pid] = process;
         process.on("exit", function (code, signal) {
@@ -187,20 +192,33 @@ function Worker(vfs) {
         });
         process.on("close", function () {
             delete processes[pid];
-            delete streams[process.stdout.id];
-            delete streams[process.stderr.id];
-            delete streams[process.stdin.id];
+            if (!onlyPid) {
+                delete streams[process.stdout.id];
+                delete streams[process.stderr.id];
+                delete streams[process.stdin.id];
+            }
             remote.onProcessClose(pid);
         });
 
         process.kill = function(code) {
             killtree(pid, code);
         };
+        
+        if (onlyPid)
+            return pid;
 
         var token = {pid: pid};
         token.stdin = storeStream(process.stdin);
         token.stdout = storeStream(process.stdout);
         token.stderr = storeStream(process.stderr);
+        return token;
+    }
+    
+    function storePty(pty) {
+        var pid = storeProcess(pty, true);
+        var token = storeStream(pty);
+        token.pid = pid;
+        
         return token;
     }
 
@@ -275,7 +293,6 @@ function Worker(vfs) {
         if (!stream) return;
         delete streams[id];
         stream.destroy();
-        nextStreamID = id;
     }
     function end(id, chunk) {
         var stream = streams[id];
@@ -283,13 +300,21 @@ function Worker(vfs) {
         delete streams[id];
         if (chunk) stream.end(chunk);
         else stream.end();
-        nextStreamID = id;
     }
 
     function kill(pid, code) {
         var process = processes[pid];
         if (!process) return;
         process.kill(code);
+    }
+
+    function resize(pid, cols, rows) {
+        var process = processes[pid];
+        if (!process) return;
+        
+        // Resize can throw
+        try { process.resize(cols, rows); }
+        catch(e) {};
     }
 
     function closeWatcher(id) {
@@ -323,13 +348,13 @@ function Worker(vfs) {
         if (!stream) return;
         stream.emit("data", chunk);
     }
-    function onEnd(id) {
+    function onEnd(id, chunk) {
         var stream = proxyStreams[id];
         if (!stream) return;
         // TODO: not delete proxy if close is going to be called later.
         // but somehow do delete proxy if close won't be called later.
         delete proxyStreams[id];
-        stream.emit("end");
+        stream.emit("end", chunk);
     }
     function onClose(id) {
         var stream = proxyStreams[id];
@@ -360,6 +385,7 @@ function Worker(vfs) {
             switch (key) {
                 case "stream": token.stream = storeStream(meta.stream); break;
                 case "process": token.process = storeProcess(meta.process); break;
+                case "pty": token.pty = storePty(meta.pty); break;
                 case "watcher": token.watcher = storeWatcher(meta.watcher); break;
                 case "api": token.api = storeApi(meta.api); break;
                 default: token[key] = meta[key]; break;

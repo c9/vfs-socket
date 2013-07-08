@@ -1,6 +1,6 @@
 ( // Module boilerplate to support browser globals, node.js and AMD.
   (typeof module !== "undefined" && function (m) { module.exports = m(require('stream'), require('events'), require('smith')); }) ||
-  (typeof define === "function" && function (m) { define("vfs-socket/consumer", ["./stream-amd", "./events-amd", "smith"], m); }) ||
+  (typeof define === "function" && function (m) { define(["./stream-amd", "./events-amd", "smith"], m); }) ||
   (function (m) { window.consumer = m(window.stream, window.events, window.smith); })
 )(function (stream, events, smith) {
 "use strict";
@@ -62,6 +62,7 @@ function Consumer() {
         ping: ping, // Send a simple ping request to the worker
         resolve:  route("resolve"),
         stat:     route("stat"),
+        metadata: route("metadata"),
         readfile: route("readfile"),
         readdir:  route("readdir"),
         mkfile:   route("mkfile"),
@@ -74,6 +75,7 @@ function Consumer() {
         watch:    route("watch"),
         connect:  route("connect"),
         spawn:    route("spawn"),
+        pty:      route("pty"),
         execFile: route("execFile"),
         extend:   route("extend"),
         unextend: route("unextend"),
@@ -103,16 +105,16 @@ function Consumer() {
             err = new Error("EDISCONNECT: vfs socket disconnected");
             err.code = "EDISCONNECT";
         }
-        Object.keys(streams).forEach(function (id) {
-            var stream = streams[id];
-            stream.emit("close");
-        });
-        Object.keys(proxyStreams).forEach(onClose);
         Object.keys(proxyProcesses).forEach(function (pid) {
             var proxyProcess = proxyProcesses[pid];
             delete proxyProcesses[pid];
             proxyProcess.emit("exit", 1);
         });
+        Object.keys(streams).forEach(function (id) {
+            var stream = streams[id];
+            stream.emit("close");
+        });
+        Object.keys(proxyStreams).forEach(onClose);
         Object.keys(proxyWatchers).forEach(function (id) {
             var proxyWatcher = proxyWatchers[id];
             delete proxyWatchers[id];
@@ -123,6 +125,11 @@ function Consumer() {
             delete proxyApis[name];
             proxyApi.emit("error", err);
         });
+    });
+    
+    this.on("error", function(err){
+        // just adding an empty listener so that events-amd doesn't throw
+        console.error(err);
     });
 
     var nextStreamID = 1;
@@ -138,9 +145,9 @@ function Consumer() {
                     stream.pause && stream.pause();
                 }
             });
-            stream.on("end", function () {
+            stream.on("end", function (chunk) {
                 delete streams[id];
-                remote.onEnd(id);
+                remote.onEnd(id, chunk);
             });
         }
         stream.on("close", function () {
@@ -192,6 +199,19 @@ function Consumer() {
             remote.kill(pid, signal);
         };
         return process;
+    }
+    function makePtyProxy(token){
+        var pty = makeStreamProxy(token);
+        var pid = token.pid;
+        pty.pid = pid;
+        proxyProcesses[pid] = pty;
+        pty.kill = function (signal) {
+            remote.kill(pid, signal);
+        };
+        pty.resize = function (cols, rows) {
+            remote.resize(pid, cols, rows);
+        };
+        return pty;
     }
 
     function makeWatcherProxy(token) {
@@ -248,13 +268,13 @@ function Consumer() {
         if (!stream) return;
         stream.emit("data", chunk);
     }
-    function onEnd(id) {
+    function onEnd(id, chunk) {
         var stream = proxyStreams[id];
         if (!stream) return;
         // TODO: not delete proxy if close is going to be called later.
         // but somehow do delete proxy if close won't be called later.
         delete proxyStreams[id];
-        stream.emit("end");
+        stream.emit("end", chunk);
     }
     function onClose(id) {
         var stream = proxyStreams[id];
@@ -289,7 +309,6 @@ function Consumer() {
         if (!stream) return;
         stream.destroy();
         delete streams[id];
-        nextStreamID = id;
     }
     function pause(id) {
         var stream = streams[id];
@@ -307,7 +326,6 @@ function Consumer() {
         delete streams[id];
         if (chunk) stream.end(chunk);
         else stream.end();
-        nextStreamID = id;
     }
 
     function on(name, handler, callback) {
@@ -359,6 +377,9 @@ function Consumer() {
         }
         if (meta.process) {
             meta.process = makeProcessProxy(meta.process);
+        }
+        if (meta.pty) {
+            meta.pty = makePtyProxy(meta.pty);
         }
         if (meta.watcher) {
             meta.watcher = makeWatcherProxy(meta.watcher);
