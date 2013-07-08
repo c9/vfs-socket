@@ -114,13 +114,11 @@ function Worker(vfs) {
         }
         Object.keys(processes).forEach(function (pid) {
             var process = processes[pid];
-            console.log("PROCESS", process)
             process.kill();
             delete processes[pid];
         });
         Object.keys(streams).forEach(function (id) {
             var stream = streams[id];
-            console.log("STREAM", stream)
             stream.emit("close", err);
         });
         Object.keys(proxyStreams).forEach(onClose);
@@ -295,7 +293,6 @@ function Worker(vfs) {
         if (!stream) return;
         delete streams[id];
         stream.destroy();
-        // nextStreamID = id;
     }
     function end(id, chunk) {
         var stream = streams[id];
@@ -303,7 +300,6 @@ function Worker(vfs) {
         delete streams[id];
         if (chunk) stream.end(chunk);
         else stream.end();
-        // nextStreamID = id;
     }
 
     function kill(pid, code) {
