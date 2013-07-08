@@ -112,16 +112,18 @@ function Worker(vfs) {
             err = new Error("EDISCONNECT: vfs socket disconnected");
             err.code = "EDISCONNECT";
         }
-        Object.keys(streams).forEach(function (id) {
-            var stream = streams[id];
-            stream.emit("close", err);
-        });
-        Object.keys(proxyStreams).forEach(onClose);
         Object.keys(processes).forEach(function (pid) {
             var process = processes[pid];
+            console.log("PROCESS", process)
             process.kill();
             delete processes[pid];
         });
+        Object.keys(streams).forEach(function (id) {
+            var stream = streams[id];
+            console.log("STREAM", stream)
+            stream.emit("close", err);
+        });
+        Object.keys(proxyStreams).forEach(onClose);
         Object.keys(watchers).forEach(function (id) {
             var watcher = watchers[id];
             delete watchers[id];
