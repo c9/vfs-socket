@@ -105,16 +105,16 @@ function Consumer() {
             err = new Error("EDISCONNECT: vfs socket disconnected");
             err.code = "EDISCONNECT";
         }
-        Object.keys(streams).forEach(function (id) {
-            var stream = streams[id];
-            stream.emit("close");
-        });
-        Object.keys(proxyStreams).forEach(onClose);
         Object.keys(proxyProcesses).forEach(function (pid) {
             var proxyProcess = proxyProcesses[pid];
             delete proxyProcesses[pid];
             proxyProcess.emit("exit", 1);
         });
+        Object.keys(streams).forEach(function (id) {
+            var stream = streams[id];
+            stream.emit("close");
+        });
+        Object.keys(proxyStreams).forEach(onClose);
         Object.keys(proxyWatchers).forEach(function (id) {
             var proxyWatcher = proxyWatchers[id];
             delete proxyWatchers[id];
